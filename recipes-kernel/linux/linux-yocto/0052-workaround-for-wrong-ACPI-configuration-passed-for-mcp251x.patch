@@ -1,0 +1,43 @@
+From 4a0b6cb007e0556b7e3c54bea1962f483b36e335 Mon Sep 17 00:00:00 2001
+From: Sugnan Prabhu S <sugnan.prabhu.s@intel.com>
+Date: Mon, 25 Sep 2017 13:39:16 +0530
+Subject: [PATCH] workaround for wrong ACPI configuration passed for mcp251x
+
+This is a temporary patch to override the wrong configuration
+values passed for the mcp251x CAN controller.
+- spi mode supported by mcp251x as per datasheet is either 0,0 or 1,1
+  but the mode passed in the ACPI table is 0,1
+- IRQ number passed in ACPI table is 231, which is not working.
+  Correct irq number is found by trying a range of supported irq numbers
+  for which cpu receives an interrupt from mcp251x on receiving CAN data
+  from another CAN controller.
+
+Signed-off-by: Sugnan Prabhu S <sugnan.prabhu.s@intel.com>
+---
+ drivers/net/can/spi/mcp251x.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/net/can/spi/mcp251x.c b/drivers/net/can/spi/mcp251x.c
+index 68e4c32..815419a 100644
+--- a/drivers/net/can/spi/mcp251x.c
++++ b/drivers/net/can/spi/mcp251x.c
+@@ -221,6 +221,7 @@
+ #define DEVICE_NAME "mcp251x"
+ 
+ #define DEFAULT_OSC_CLK_FREQ	(25 * 1000 * 1000)
++#define CPU_IN_MCP2515_IRQ		157
+ 
+ static int mcp251x_enable_dma; /* Enable SPI DMA. Default: 0 (Off) */
+ module_param(mcp251x_enable_dma, int, S_IRUGO);
+@@ -1050,6 +1051,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
+ 		spi->irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(&spi->dev), 0);
+ 		if (spi->irq < 0)
+ 			return -EINVAL;
++		spi->mode = SPI_MODE_0;
++		spi->irq = CPU_IN_MCP2515_IRQ;
+ 	}
+ 
+ 	clk = devm_clk_get(&spi->dev, NULL);
+-- 
+2.7.4
+
